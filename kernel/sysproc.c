@@ -14,6 +14,43 @@ sys_exit(void)
   exit(n);
   return 0;  // not reached
 }
+uint64
+sys_getsyscallcount(void){
+struct proc *p=myproc();
+return p->syscall_count;
+}
+
+extern struct proc proc[NPROC]; // Declare the process table
+
+uint64
+sys_getstatus(void) {
+    int pid;
+    uint64 status_addr; // Use uint64 for user address
+    char status[16];
+
+    // Fetch arguments
+    argint(0, &pid);
+    argaddr(1, &status_addr);
+
+    // Iterate through the process table
+    struct proc *p = 0;
+    for (p = proc; p < &proc[NPROC]; p++) {
+        if (p->pid == pid) {
+            // Get the process state as a string
+            safestrcpy(status, p->state == UNUSED ? "unused" :
+                              p->state == SLEEPING ? "sleeping" :
+                              p->state == RUNNABLE ? "runnable" :
+                              p->state == RUNNING ? "running" :
+                              p->state == ZOMBIE ? "zombie" : "unknown", 16);
+
+            // Copy the status string back to user space
+            if (copyout(myproc()->pagetable, status_addr, (char *)status, sizeof(status)) < 0)
+                return -1;
+            return 0;
+        }
+    }
+    return -1; // PID not found
+}
 
 uint64
 sys_getpid(void)
@@ -90,4 +127,9 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+uint64
+sys_procdump(void) {
+    procdump();
+    return 0;
 }
